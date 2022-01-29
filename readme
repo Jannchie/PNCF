@@ -1,0 +1,9 @@
+===================================================================
+PNCF: Neural collaborative filtering based on pre-trained embedding
+===================================================================
+
+Author: 
+    Jianqi Pan
+
+Try it by: 
+    python main.py
