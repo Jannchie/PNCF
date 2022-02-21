@@ -15,12 +15,13 @@ import pandas as pd
 from tqdm import tqdm
 import numpy as np
 import pickle
-
+from typing import Literal
 from provider.provider import generate_samples
 
 
 def run_PNCF_model(
         dataset_name: str,
+        model_name: Literal['PNCF', 'NPNCF'] = 'PNCF',
         batch_size: int = 512,
         bag_size: int = 20,
         core: int = 10,
@@ -47,38 +48,40 @@ def run_PNCF_model(
     Returns:
         list[list]: matrics 
     """
-    model_name = 'PNCF'
+    cache = True
+    provider = None
     if dataset_name == 'bilibili':
-        generate_samples(BiliTagProvider(),
-                         dataset_name, bag_size=bag_size, core=core)
+        provider = BiliTagProvider()
     elif dataset_name == 'ml_100k':
-        generate_samples(ML100KProvider(), dataset_name,
-                         bag_size=bag_size, core=core)
+        provider = ML100KProvider()
     elif dataset_name == 'ml_1m':
-        generate_samples(ML1MProvider(), dataset_name,
-                         bag_size=bag_size, core=core)
+        provider = ML1MProvider()
     elif dataset_name == 'ml_10m':
-        generate_samples(ML10MProvider(), dataset_name,
-                         bag_size=bag_size, core=core)
+        provider = ML10MProvider()
     elif dataset_name == 'ml_20m':
-        generate_samples(ML20MProvider(), dataset_name,
-                         bag_size=bag_size, core=core)
+        provider = ML20MProvider()
+    generate_samples(provider, dataset_name,
+                     bag_size=bag_size, core=core, cache=cache)
     writer = SummaryWriter(
         f'./log/{dataset_name}/{model_name}/{datetime.datetime.now().timestamp()}-{batch_size}-{bag_size}-{core}-{vec_size}-{vec_neg}-{vec_window}-{train_neg}-{lr}-{epochs}')
-
     pretrain_vec(dataset_name, bag_size=bag_size,
-                 size=vec_size, neg=vec_neg, window=vec_window, core=core)
+                 size=vec_size, neg=vec_neg, window=vec_window, core=core, cache=cache)
     iv = Word2Vec.load(get_vec_filename(dataset_name, 'i',
                        bag_size, vec_size, vec_neg, vec_window))
     uv = Word2Vec.load(get_vec_filename(dataset_name, 'u',
                        bag_size, vec_size, vec_neg, vec_window))
     data = pd.read_csv(f'./data/{dataset_name}_train_set.csv', dtype=str)
-    pds = PNCFDataset(data, uv, iv, neg_nums=train_neg)
+    pds = PNCFDataset(data, uv, iv, neg_nums=train_neg, cache=cache)
 
     dl = torch.utils.data.DataLoader(
         pds, batch_size=batch_size, shuffle=True)
 
-    m = PNCF(writer, uvec=uv.wv.vectors, ivec=iv.wv.vectors)
+    m = PNCF()
+    if model_name == 'PNCF':
+        m.init(writer, uvec=uv.wv.vectors, ivec=iv.wv.vectors, layer_nums=3)
+    elif model_name == 'NPNCF':
+        m.init_without_pretrain(
+            writer, user_num=uv.wv.vectors.shape[0], item_num=iv.wv.vectors.shape[0], dim=vec_size, layer_nums=3)
     m.fit(dl, lr=lr, epochs=epochs)
 
     df = pd.read_csv(f'./data/{dataset_name}_test_set.csv', dtype=str)

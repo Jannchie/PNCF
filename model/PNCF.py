@@ -1,15 +1,56 @@
 import torch
 from tqdm import tqdm
+from torch.utils.tensorboard import SummaryWriter
 
 
 class PNCF(torch.nn.Module):
-    def __init__(self,
-                 writer,
-                 uvec,
-                 ivec,
-                 layer_nums=3
-                 ):
-        """PNCF Recommender 
+    def __init__(self):
+        """
+        PNCF Recommender 
+        """
+        super(PNCF, self).__init__()
+
+    def init_without_pretrain(self, writer: SummaryWriter, user_num: int, item_num: int, dim: int, layer_nums: int):
+        """
+        Init without pretrained embedding
+
+        Args:
+            writer (SummaryWriter): writer
+            user_num (int): user number
+            item_num (int): item number
+            dim (int): vector dims
+            layer_nums (int): MLP layer number
+        """
+        self.writer = writer
+        self.layer_nums = layer_nums
+        self.user_embedding = torch.nn.Embedding(user_num, dim)
+        self.item_embedding = torch.nn.Embedding(item_num, dim)
+        self.user_embedding.weight.data.uniform_(-0.01, 0.01)
+        self.item_embedding.weight.data.uniform_(-0.01, 0.01)
+        in_length = self.user_embedding.weight.shape[1] + \
+            self.item_embedding.weight.shape[1]
+        layers = []
+        for i in range(self.layer_nums, 0, -1):
+            input_size = in_length * 2 ** i if self.layer_nums != i else in_length
+            next_size = in_length * 2 ** (i - 1)
+            layers.append(
+                torch.nn.Linear(input_size, next_size)
+            )
+            layers.append(torch.nn.BatchNorm1d(next_size)),
+            layers.append(torch.nn.ReLU())
+            layers.append(torch.nn.Dropout())
+        layers.append(torch.nn.Linear(in_length, 1))
+        layers.append(torch.nn.Sigmoid())
+        self.mlp = torch.nn.Sequential(*layers)
+
+        def init_weights(m):
+            if type(m) == torch.nn.Linear:
+                torch.nn.init.normal_(m.weight, std=0.01)
+        self.mlp.apply(init_weights)
+        self.early_stop = True
+
+    def init(self, writer: SummaryWriter, uvec: list, ivec: list, layer_nums: int):
+        """Init PNCF Recommender
 
         Args:
             writer (torch.utils.tensorboard.SummaryWriter): tensorboard writer
@@ -17,7 +58,6 @@ class PNCF(torch.nn.Module):
             ivec (list): items'vectors
             layer_nums (int, optional): MLP layer nums. Defaults to 3.
         """
-        super(PNCF, self).__init__()
         freeze = False
         self.writer = writer
         self.layer_nums = layer_nums
@@ -44,9 +84,7 @@ class PNCF(torch.nn.Module):
         def init_weights(m):
             if type(m) == torch.nn.Linear:
                 torch.nn.init.normal_(m.weight, std=0.01)
-
         self.mlp.apply(init_weights)
-
         self.early_stop = True
 
     def forward(self, user_idxs, tag_idxs):

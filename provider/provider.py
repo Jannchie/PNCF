@@ -59,8 +59,8 @@ class DataProvider:
             raise ValueError(f'Invalid level value: {level}')
 
 
-def generate_samples(provider: DataProvider, data_name, bag_size=20, core=10):
-    if os.path.exists(f'./temp/{data_name}_u_{bag_size}_c{core}_sample.csv'):
+def generate_samples(provider: DataProvider, data_name, bag_size=20, core=10, cache=True):
+    if os.path.exists(f'./temp/{data_name}_u_{bag_size}_c{core}_sample.csv') and cache:
         print('samples exists')
         return
     provider.generate_df()

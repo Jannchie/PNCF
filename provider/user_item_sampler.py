@@ -33,17 +33,8 @@ class UserItemSampler:
         df = self.dataset[self.dataset.index.get_level_values(group) == id]
         radio = torch.tensor(df['current'].to_list()) / count
         samples = []
-        # neg_samples = []
         for _ in range(int(count ** 0.75)):
             idxs = torch.multinomial(radio, window, True)
             sample = df.iloc[idxs].index.get_level_values(target).to_list()
             samples.append(sample)
-            # for _ in range(neg_nums):
-            #     idxs = torch.multinomial(
-            #         self.target_radio, window * 2, True)
-            #     neg_sample = self.target_list[idxs]
-            #     neg_sample = [
-            #         w for w in neg_sample if w not in sample][:window]
-            # neg_samples.append(neg_sample)
-        # return samples, neg_samples
         return samples

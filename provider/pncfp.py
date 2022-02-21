@@ -14,9 +14,9 @@ import pandas
 
 
 class PNCFDataset(torch.utils.data.Dataset):
-    def __init__(self, data: pd.DataFrame, uv: gensim.models.word2vec.Word2Vec, iv: gensim.models.word2vec.Word2Vec, neg_nums: int = 20):
+    def __init__(self, data: pd.DataFrame, uv: gensim.models.word2vec.Word2Vec, iv: gensim.models.word2vec.Word2Vec, neg_nums: int = 20, cache=True):
         path = f'./temp/pncf-neg{neg_nums}-u{uv.wv.vectors.shape[0]}-{uv.wv.vectors.shape[1]}-v{iv.wv.vectors.shape[0]}-{iv.wv.vectors.shape[1]}-r{len(data)}.csv'
-        if not os.path.exists(path):
+        if not os.path.exists(path) or not cache:
             self.data = []
             uk = uv.wv.index2word
             ik = iv.wv.index2word
