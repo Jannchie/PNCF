@@ -1,7 +1,8 @@
 
 
+from pyexpat import model
 from runner import run_PNCF_model
-
+import pickle
 
 if __name__ == '__main__':
     batch_size = 1024
@@ -15,13 +16,13 @@ if __name__ == '__main__':
     lr = 0.001
     epochs = 10
     model_name = 'PNCF'
-    for i in range(10):
-        metrics = run_PNCF_model(dataset_name, model_name, batch_size, bag_size, core,
-                                 vec_size, vec_neg, vec_window, train_neg, lr, epochs)
-        metrics = {
-            'Precision@10': metrics[2][0],
-            'Recall@10': metrics[2][1],
-            'NDCG@10': metrics[2][3],
-            'HR@10': metrics[2][2],
-            'MRR@10': metrics[2][4],
-        }
+
+    res = pickle.load(open('res.pkl', 'rb'))
+    for model_name in 'NeuMF',:
+        if model_name not in res:
+            res[model_name] = []
+        for i in range(100):
+            metrics = run_PNCF_model(dataset_name, model_name, batch_size, bag_size, core,
+                                     vec_size, vec_neg, vec_window, train_neg, lr, epochs, cache=False)
+            res[model_name].append(metrics)
+            pickle.dump(res, open('res.pkl', 'wb'))

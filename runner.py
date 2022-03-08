@@ -3,6 +3,7 @@ import os
 from gensim.models import Word2Vec
 import torch
 from matric import mrr_at_k, ndcg_at_k
+from model.NeuMF import NeuMF
 from model.pretrain import get_vec_filename, pretrain_vec
 from provider.bili_tag_small import BiliTagProvider
 from provider.ml import ML100KProvider, ML10MProvider, ML1MProvider, ML20MProvider
@@ -30,7 +31,8 @@ def run_PNCF_model(
         vec_window: int = 5,
         train_neg: int = 20,
         lr: float = 0.001,
-        epochs: int = 3):
+        epochs: int = 3,
+        cache=True):
     """ run PNCF
 
     Args:
@@ -48,7 +50,6 @@ def run_PNCF_model(
     Returns:
         list[list]: matrics 
     """
-    cache = True
     provider = None
     if dataset_name == 'bilibili':
         provider = BiliTagProvider()
@@ -82,6 +83,9 @@ def run_PNCF_model(
     elif model_name == 'NPNCF':
         m.init_without_pretrain(
             writer, user_num=uv.wv.vectors.shape[0], item_num=iv.wv.vectors.shape[0], dim=vec_size, layer_nums=3)
+    elif model_name == 'NeuMF':
+        m = NeuMF(writer, uv.wv.vectors, iv.wv.vectors,
+                  vec_size, 3, 0.5, loss_type='SL', reg_1=0.0)
     m.fit(dl, lr=lr, epochs=epochs)
 
     df = pd.read_csv(f'./data/{dataset_name}_test_set.csv', dtype=str)
@@ -99,8 +103,6 @@ def run_PNCF_model(
         ua = {}
         temp = list(user2index.values())
         fname = f'./temp/u{temp[0]}-{temp[-1]}-{type}.pkl'
-        if os.path.exists(fname):
-            return pickle.load(open(fname, 'rb'))
         for row in tqdm(df.iterrows()):
             user = row[1]['user']
             item = row[1]['item']
